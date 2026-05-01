@@ -1,0 +1,296 @@
+package ui;
+
+import db.DBConnection;
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.stage.Stage;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+
+public class ScanPlateUI extends Application {
+
+    @Override
+    public void start(Stage stage) {
+        stage.setTitle("Smart Parking System - Scan License Plate");
+
+        // ── NAVBAR ──
+        HBox navbar = new HBox();
+        navbar.setPadding(new Insets(15, 25, 15, 25));
+        navbar.setStyle("-fx-background-color: #1a1a2e;");
+        navbar.setAlignment(Pos.CENTER_LEFT);
+
+        Label appName = new Label("🅿 Smart Parking System");
+        appName.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        appName.setTextFill(Color.WHITE);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Label ucLabel = new Label(" Scan License Plate");
+        ucLabel.setFont(Font.font("Arial", 13));
+        ucLabel.setTextFill(Color.web("#a0a0c0"));
+
+        Button backBtn = new Button("← Back");
+        backBtn.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: #a0a0c0; " +
+                        "-fx-font-size: 13px; -fx-cursor: hand; -fx-border-color: #2a2a4e; " +
+                        "-fx-border-radius: 6; -fx-padding: 5 12;"
+        );
+        backBtn.setOnAction(e -> {
+            DashboardUI dashboard = new DashboardUI();
+            Stage dashStage = new Stage();
+            try {
+                dashboard.start(dashStage);
+                stage.close();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+        navbar.getChildren().addAll(appName, spacer, ucLabel, backBtn);
+
+        // ── HEADER ──
+        VBox header = new VBox(5);
+        header.setPadding(new Insets(25, 25, 20, 25));
+        header.setStyle("-fx-background-color: #16213e;");
+
+        Label title = new Label("Scan Vehicle License Plate");
+        title.setFont(Font.font("Arial", FontWeight.BOLD, 26));
+        title.setTextFill(Color.WHITE);
+
+        Label subtitle = new Label("Enter a plate number to check vehicle booking status");
+        subtitle.setFont(Font.font("Arial", 13));
+        subtitle.setTextFill(Color.web("#8888aa"));
+
+        header.getChildren().addAll(title, subtitle);
+
+        // ── SCAN AREA ──
+        VBox scanArea = new VBox(15);
+        scanArea.setPadding(new Insets(30, 25, 20, 25));
+        scanArea.setStyle("-fx-background-color: #1a1a2e;");
+        scanArea.setAlignment(Pos.TOP_CENTER);
+
+        // Input box
+        HBox inputBox = new HBox(10);
+        inputBox.setAlignment(Pos.CENTER);
+
+        TextField plateField = new TextField();
+        plateField.setPromptText("Enter plate number");
+        plateField.setStyle(
+                "-fx-background-color: #16213e; -fx-text-fill: white; " +
+                        "-fx-prompt-text-fill: #555577; -fx-font-size: 16px; " +
+                        "-fx-padding: 12 20; -fx-background-radius: 8; " +
+                        "-fx-border-color: #2a2a4e; -fx-border-radius: 8;"
+        );
+        plateField.setPrefWidth(350);
+
+        Button scanBtn = new Button("Scan");
+        scanBtn.setStyle(
+                "-fx-background-color: #0f3460; -fx-text-fill: white; " +
+                        "-fx-font-size: 14px; -fx-font-weight: bold; " +
+                        "-fx-padding: 12 24; -fx-background-radius: 8; -fx-cursor: hand;"
+        );
+
+        inputBox.getChildren().addAll(plateField, scanBtn);
+
+        // Result area
+        VBox resultBox = new VBox(12);
+        resultBox.setPadding(new Insets(20));
+        resultBox.setStyle("-fx-background-color: #16213e; -fx-background-radius: 12;");
+        resultBox.setAlignment(Pos.TOP_LEFT);
+        resultBox.setVisible(false);
+        resultBox.setPrefWidth(600);
+
+        scanArea.getChildren().addAll(inputBox, resultBox);
+
+        // ── SCAN BUTTON ACTION ──
+        scanBtn.setOnAction(e -> {
+            String plate = plateField.getText().trim();
+            if (plate.isEmpty()) {
+                showAlert("Warning", "Please enter a plate number!");
+                return;
+            }
+
+            resultBox.getChildren().clear();
+            resultBox.setVisible(true);
+
+            Connection conn = DBConnection.getInstance().getConnection();
+            try {
+                // Search vehicle by plate
+                String query = "SELECT v.vehicle_id, v.plate_number, v.vehicle_type, " +
+                        "v.model, vo.name, vo.email, vo.phone, " +
+                        "b.booking_id, b.booking_date, b.start_time, " +
+                        "b.end_time, b.status, p.slot_number, p.zone " +
+                        "FROM vehicles v " +
+                        "JOIN vehicle_owners vo ON v.owner_id = vo.owner_id " +
+                        "LEFT JOIN bookings b ON v.vehicle_id = b.vehicle_id " +
+                        "AND b.status = 'active' " +
+                        "LEFT JOIN parking_slots p ON b.slot_id = p.slot_id " +
+                        "WHERE v.plate_number = ?";
+
+                PreparedStatement stmt = conn.prepareStatement(query);
+                stmt.setString(1, plate);
+                ResultSet rs = stmt.executeQuery();
+
+                if (rs.next()) {
+                    String ownerName = rs.getString("name");
+                    String vehicleType = rs.getString("vehicle_type");
+                    String model = rs.getString("model");
+                    String bookingId = rs.getString("booking_id");
+                    String bookingDate = rs.getString("booking_date");
+                    String startTime = rs.getString("start_time");
+                    String endTime = rs.getString("end_time");
+                    String bookingStatus = rs.getString("status");
+                    String slotNumber = rs.getString("slot_number");
+                    String zone = rs.getString("zone");
+
+                    boolean hasActiveBooking = bookingId != null;
+
+                    // Status banner
+                    Label statusBanner = new Label(
+                            hasActiveBooking ? "✅ AUTHORIZED — Active Booking Found"
+                                    : "⚠️ UNAUTHORIZED — No Active Booking"
+                    );
+                    statusBanner.setFont(Font.font("Arial", FontWeight.BOLD, 15));
+                    statusBanner.setPadding(new Insets(10, 20, 10, 20));
+                    statusBanner.setMaxWidth(Double.MAX_VALUE);
+                    if (hasActiveBooking) {
+                        statusBanner.setStyle(
+                                "-fx-background-color: #1a472a; -fx-text-fill: #51cf66; " +
+                                        "-fx-background-radius: 8;"
+                        );
+                    } else {
+                        statusBanner.setStyle(
+                                "-fx-background-color: #4a3a0f; -fx-text-fill: #ffd43b; " +
+                                        "-fx-background-radius: 8;"
+                        );
+                    }
+
+                    // Vehicle info
+                    Label vehicleHeader = new Label("Vehicle Information");
+                    vehicleHeader.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+                    vehicleHeader.setTextFill(Color.web("#a0a0c0"));
+
+                    GridPane infoGrid = new GridPane();
+                    infoGrid.setHgap(20);
+                    infoGrid.setVgap(8);
+
+                    addInfoRow(infoGrid, 0, "Plate Number:", plate);
+                    addInfoRow(infoGrid, 1, "Owner:", ownerName);
+                    addInfoRow(infoGrid, 2, "Vehicle Type:", vehicleType);
+                    addInfoRow(infoGrid, 3, "Model:", model);
+
+                    if (hasActiveBooking) {
+                        Label bookingHeader = new Label("Active Booking Details");
+                        bookingHeader.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+                        bookingHeader.setTextFill(Color.web("#a0a0c0"));
+                        bookingHeader.setPadding(new Insets(10, 0, 0, 0));
+
+                        GridPane bookingGrid = new GridPane();
+                        bookingGrid.setHgap(20);
+                        bookingGrid.setVgap(8);
+
+                        addInfoRow(bookingGrid, 0, "Booking ID:", "#" + bookingId);
+                        addInfoRow(bookingGrid, 1, "Date:", bookingDate);
+                        addInfoRow(bookingGrid, 2, "Time:", startTime + " → " + endTime);
+                        addInfoRow(bookingGrid, 3, "Slot:", slotNumber);
+                        addInfoRow(bookingGrid, 4, "Zone:", zone);
+
+                        resultBox.getChildren().addAll(
+                                statusBanner, vehicleHeader, infoGrid,
+                                bookingHeader, bookingGrid
+                        );
+                    } else {
+                        resultBox.getChildren().addAll(
+                                statusBanner, vehicleHeader, infoGrid
+                        );
+                    }
+
+                } else {
+                    // Not found
+                    Label notFound = new Label("❌ UNREGISTERED VEHICLE");
+                    notFound.setFont(Font.font("Arial", FontWeight.BOLD, 15));
+                    notFound.setPadding(new Insets(10, 20, 10, 20));
+                    notFound.setMaxWidth(Double.MAX_VALUE);
+                    notFound.setStyle(
+                            "-fx-background-color: #4a1a1a; -fx-text-fill: #ff6b6b; " +
+                                    "-fx-background-radius: 8;"
+                    );
+
+                    Label notFoundDesc = new Label(
+                            "Plate number '" + plate + "' is not registered in the system.\n" +
+                                    "This vehicle may require further investigation."
+                    );
+                    notFoundDesc.setFont(Font.font("Arial", 13));
+                    notFoundDesc.setTextFill(Color.web("#8888aa"));
+
+                    resultBox.getChildren().addAll(notFound, notFoundDesc);
+                }
+
+            } catch (Exception ex) {
+                showAlert("Error", "Database error: " + ex.getMessage());
+            }
+        });
+
+        // ── BOTTOM BAR ──
+        HBox bottomBar = new HBox();
+        bottomBar.setPadding(new Insets(12, 25, 12, 25));
+        bottomBar.setStyle(
+                "-fx-background-color: #1a1a2e; " +
+                        "-fx-border-color: #2a2a4e; -fx-border-width: 1 0 0 0;"
+        );
+        bottomBar.setAlignment(Pos.CENTER_LEFT);
+
+        Label footerLabel = new Label(
+                "Smart Parking Allocation & Violation Enforcement System  •  UC-13"
+        );
+        footerLabel.setFont(Font.font("Arial", 11));
+        footerLabel.setTextFill(Color.web("#555577"));
+        bottomBar.getChildren().add(footerLabel);
+
+        // ── MAIN LAYOUT ──
+        VBox mainLayout = new VBox();
+        mainLayout.setStyle("-fx-background-color: #1a1a2e;");
+        VBox.setVgrow(scanArea, Priority.ALWAYS);
+        mainLayout.getChildren().addAll(navbar, header, scanArea, bottomBar);
+
+        Scene scene = new Scene(mainLayout, 900, 600);
+        stage.setScene(scene);
+        stage.setMinWidth(800);
+        stage.setMinHeight(500);
+        stage.show();
+    }
+
+    private void addInfoRow(GridPane grid, int row, String label, String value) {
+        Label lbl = new Label(label);
+        lbl.setFont(Font.font("Arial", FontWeight.BOLD, 13));
+        lbl.setTextFill(Color.web("#8888aa"));
+
+        Label val = new Label(value != null ? value : "N/A");
+        val.setFont(Font.font("Arial", 13));
+        val.setTextFill(Color.WHITE);
+
+        grid.add(lbl, 0, row);
+        grid.add(val, 1, row);
+    }
+
+    private void showAlert(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}

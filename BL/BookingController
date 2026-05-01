@@ -96,4 +96,3 @@ public class BookingController {
         return bookingDAO.getActiveBookingsByOwner(ownerId);
     }
 }
-

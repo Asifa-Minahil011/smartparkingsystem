@@ -1,0 +1,145 @@
+package db;
+
+import bl.Booking;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class BookingDAO {
+
+    private final Connection connection;
+
+    public BookingDAO() {
+        connection = DBConnection.getInstance().getConnection();
+    }
+
+    public List<Booking> getBookingHistory(int ownerId) {
+        List<Booking> bookings = new ArrayList<>();
+        String query = "SELECT b.booking_id, b.booking_date, b.start_time, " +
+                "b.end_time, b.status, p.slot_number, p.zone " +
+                "FROM bookings b " +
+                "JOIN parking_slots p ON b.slot_id = p.slot_id " +
+                "WHERE b.owner_id = ? " +
+                "ORDER BY b.booking_date DESC";
+        try {
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setInt(1, ownerId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                Booking booking = new Booking(
+                        rs.getInt("booking_id"),
+                        rs.getString("booking_date"),
+                        rs.getString("start_time"),
+                        rs.getString("end_time"),
+                        rs.getString("status"),
+                        rs.getString("slot_number"),
+                        rs.getString("zone")
+                );
+                bookings.add(booking);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error fetching booking history: " + e.getMessage());
+        }
+        return bookings;
+    }
+
+    public boolean createBooking(Booking booking) {
+        // Input validation
+        if (booking.getBookingDate() == null || booking.getStartTime() == null
+                || booking.getEndTime() == null) {
+            System.out.println("Validation Error: Booking fields cannot be null.");
+            return false;
+        }
+
+        String query = "INSERT INTO bookings (owner_id, slot_id, vehicle_id, " +
+                "booking_date, start_time, end_time, status) " +
+                "VALUES (?, ?, ?, ?, ?, ?, 'active')";
+        try {
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setInt(1, booking.getOwnerId());
+            stmt.setInt(2, booking.getSlotId());
+            stmt.setInt(3, booking.getVehicleId());
+            stmt.setString(4, booking.getBookingDate());
+            stmt.setString(5, booking.getStartTime());
+            stmt.setString(6, booking.getEndTime());
+            int rows = stmt.executeUpdate();
+            return rows > 0;
+        } catch (SQLException e) {
+            System.out.println("Error creating booking: " + e.getMessage());
+            return false;
+        }
+    }
+
+    // ── UC05: Cancel a booking ───────────────────────────────────────────────
+    /**
+     * Sets a booking's status to 'cancelled'.
+     * @param bookingId  the booking to cancel
+     * @param ownerId    ensures the booking belongs to this owner (security)
+     * @return true if update succeeded
+     */
+    public boolean cancelBooking(int bookingId, int ownerId) {
+        String query = "UPDATE bookings SET status = 'cancelled' " +
+                "WHERE booking_id = ? AND owner_id = ? AND status = 'active'";
+        try {
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setInt(1, bookingId);
+            stmt.setInt(2, ownerId);
+            int rows = stmt.executeUpdate();
+            return rows > 0;
+        } catch (SQLException e) {
+            System.out.println("Error cancelling booking: " + e.getMessage());
+            return false;
+        }
+    }
+    public List<Booking> getActiveBookingsByOwner(int ownerId) {
+        List<Booking> bookings = new ArrayList<>();
+        String query = "SELECT b.booking_id, b.booking_date, b.start_time, " +
+                "b.end_time, b.status, p.slot_number, p.zone, b.slot_id " +
+                "FROM bookings b " +
+                "JOIN parking_slots p ON b.slot_id = p.slot_id " +
+                "WHERE b.owner_id = ? AND b.status = 'active' " +
+                "ORDER BY b.booking_date DESC";
+        try {
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setInt(1, ownerId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                Booking booking = new Booking(
+                        rs.getInt("booking_id"),
+                        rs.getString("booking_date"),
+                        rs.getString("start_time"),
+                        rs.getString("end_time"),
+                        rs.getString("status"),
+                        rs.getString("slot_number"),
+                        rs.getString("zone")
+                );
+                booking.setSlotNumber(rs.getString("slot_number"));
+                bookings.add(booking);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error fetching active bookings: " + e.getMessage());
+        }
+        return bookings;
+    }
+    public boolean isSlotAvailableForTime(int slotId, String date,
+                                          String startTime, String endTime) {
+        String query = "SELECT COUNT(*) FROM bookings " +
+                "WHERE slot_id = ? AND booking_date = ? AND status = 'active' " +
+                "AND NOT (end_time <= ? OR start_time >= ?)";
+        try {
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setInt(1, slotId);
+            stmt.setString(2, date);
+            stmt.setString(3, startTime);
+            stmt.setString(4, endTime);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1) == 0;  // true = no conflict
+            }
+        } catch (SQLException e) {
+            System.out.println("Error checking slot availability: " + e.getMessage());
+        }
+        return false;
+    }
+}
+

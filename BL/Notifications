@@ -1,0 +1,28 @@
+package bl;
+
+public class Notifications {
+    private int notifId;
+    private String message;
+    private String sentAt;
+    private boolean isRead;
+    private int violationId;
+
+    public Notifications(int notifId, String message, String sentAt,
+                         boolean isRead, int violationId) {
+        this.notifId = notifId;
+        this.message = message;
+        this.sentAt = sentAt;
+        this.isRead = isRead;
+        this.violationId = violationId;
+    }
+
+    public int getNotifId() { return notifId; }
+    public String getMessage() { return message; }
+    public String getSentAt() { return sentAt; }
+    public boolean isRead() { return isRead; }
+    public int getViolationId() { return violationId; }
+
+    public String getReadStatus() {
+        return isRead ? "Read" : "Unread";
+    }
+}

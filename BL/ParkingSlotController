@@ -1,18 +1,18 @@
 package bl;
 
+import db.BookingDAO;
 import db.ParkingSlotDAO;
 import java.util.List;
 
-
 public class ParkingSlotController {
 
-    // Information Expert: ParkingSlotDAO knows the DB; controller calls it.
     private final ParkingSlotDAO slotDAO;
+    private final BookingDAO     bookingDAO;
 
     public ParkingSlotController() {
-        this.slotDAO = new ParkingSlotDAO();
+        this.slotDAO    = new ParkingSlotDAO();
+        this.bookingDAO = new BookingDAO();
     }
-
 
     public List<ParkingSlot> viewAvailableSlots() {
         List<ParkingSlot> slots = slotDAO.getAvailableSlots();
@@ -28,7 +28,6 @@ public class ParkingSlotController {
         return slotDAO.getAvailableSlots().size();
     }
 
-
     public int countReservedSlots() {
         List<ParkingSlot> all = slotDAO.getAllSlots();
         int count = 0;
@@ -38,11 +37,9 @@ public class ParkingSlotController {
         return count;
     }
 
-    // ── UC03: Count total slots ──────────────────────────────────────────────
     public int countTotalSlots() {
         return slotDAO.getAllSlots().size();
     }
-
 
     public boolean reserveSlot(int slotId) {
         return slotDAO.updateSlotStatus(slotId, "reserved");
@@ -52,8 +49,21 @@ public class ParkingSlotController {
         return slotDAO.updateSlotStatus(slotId, "available");
     }
 
-    // ── Helper: get a single slot by ID ──────────────────────────────────────
     public ParkingSlot getSlotById(int slotId) {
         return slotDAO.getSlotById(slotId);
+    }
+
+    // ── Auto-release slots whose booking time has expired ────────────────────
+    public void refreshSlotStatuses() {
+        List<ParkingSlot> all = slotDAO.getAllSlots();
+        for (ParkingSlot slot : all) {
+            if (slot.getStatus().equals("reserved")) {
+                boolean stillActive =
+                        bookingDAO.hasActiveBookingForSlot(slot.getSlotId());
+                if (!stillActive) {
+                    slotDAO.updateSlotStatus(slot.getSlotId(), "available");
+                }
+            }
+        }
     }
 }

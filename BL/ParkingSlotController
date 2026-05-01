@@ -1,0 +1,59 @@
+package bl;
+
+import db.ParkingSlotDAO;
+import java.util.List;
+
+
+public class ParkingSlotController {
+
+    // Information Expert: ParkingSlotDAO knows the DB; controller calls it.
+    private final ParkingSlotDAO slotDAO;
+
+    public ParkingSlotController() {
+        this.slotDAO = new ParkingSlotDAO();
+    }
+
+
+    public List<ParkingSlot> viewAvailableSlots() {
+        List<ParkingSlot> slots = slotDAO.getAvailableSlots();
+        System.out.println("Available slots retrieved: " + slots.size());
+        return slots;
+    }
+
+    public List<ParkingSlot> getAllSlots() {
+        return slotDAO.getAllSlots();
+    }
+
+    public int countAvailableSlots() {
+        return slotDAO.getAvailableSlots().size();
+    }
+
+
+    public int countReservedSlots() {
+        List<ParkingSlot> all = slotDAO.getAllSlots();
+        int count = 0;
+        for (ParkingSlot slot : all) {
+            if (slot.getStatus().equals("reserved")) count++;
+        }
+        return count;
+    }
+
+    // ── UC03: Count total slots ──────────────────────────────────────────────
+    public int countTotalSlots() {
+        return slotDAO.getAllSlots().size();
+    }
+
+
+    public boolean reserveSlot(int slotId) {
+        return slotDAO.updateSlotStatus(slotId, "reserved");
+    }
+
+    public boolean releaseSlot(int slotId) {
+        return slotDAO.updateSlotStatus(slotId, "available");
+    }
+
+    // ── Helper: get a single slot by ID ──────────────────────────────────────
+    public ParkingSlot getSlotById(int slotId) {
+        return slotDAO.getSlotById(slotId);
+    }
+}

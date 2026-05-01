@@ -1,0 +1,213 @@
+package ui;
+
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.stage.Stage;
+
+public class DashboardUI extends Application {
+
+    @Override
+    public void start(Stage stage) {
+        stage.setTitle("Smart Parking System - Dashboard");
+
+        // ── NAVBAR ──
+        HBox navbar = new HBox();
+        navbar.setPadding(new Insets(15, 25, 15, 25));
+        navbar.setStyle("-fx-background-color: #1a1a2e;");
+        navbar.setAlignment(Pos.CENTER_LEFT);
+
+        Label appName = new Label("🅿 Smart Parking System");
+        appName.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        appName.setTextFill(Color.WHITE);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Label userLabel = new Label("👤 Vehicle Owner");
+        userLabel.setFont(Font.font("Arial", 13));
+        userLabel.setTextFill(Color.web("#a0a0c0"));
+
+        navbar.getChildren().addAll(appName, spacer, userLabel);
+
+        // ── WELCOME HEADER ──
+        VBox header = new VBox(5);
+        header.setPadding(new Insets(30, 25, 20, 25));
+        header.setStyle("-fx-background-color: #16213e;");
+
+        Label welcome = new Label("Welcome!");
+        welcome.setFont(Font.font("Arial", FontWeight.BOLD, 28));
+        welcome.setTextFill(Color.WHITE);
+
+        Label subtitle = new Label("What would you like to do today?");
+        subtitle.setFont(Font.font("Arial", 14));
+        subtitle.setTextFill(Color.web("#8888aa"));
+
+        header.getChildren().addAll(welcome, subtitle);
+
+        // ── UC CARDS ──
+        GridPane grid = new GridPane();
+        grid.setPadding(new Insets(30, 25, 30, 25));
+        grid.setHgap(20);
+        grid.setVgap(20);
+        grid.setStyle("-fx-background-color: #1a1a2e;");
+
+        // UC03 Card
+        VBox uc03Card = makeCard(
+                "🅿",
+                "View Parking Slots",
+                "UC-03",
+                "View real-time availability\nof all parking slots",
+                "#0f3460",
+                "#4a9eff"
+        );
+        uc03Card.setOnMouseClicked(e -> {
+            try {
+                new ViewSlotsUI().start(new Stage());
+                stage.close();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        // UC04 Card
+        VBox uc04Card = makeCard(
+                "📅",
+                "Book Parking Slot",
+                "UC-04",
+                "Reserve an available\nparking slot",
+                "#1a3a1a",
+                "#51cf66"
+        );
+        uc04Card.setOnMouseClicked(e -> {
+            try {
+                new BookSlotUI().start(new Stage());
+                stage.close();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        // UC05 Card
+        VBox uc05Card = makeCard(
+                "✘",
+                "Cancel Booking",
+                "UC-05",
+                "Cancel an existing\nparking booking",
+                "#3d0f0f",
+                "#ff6b6b"
+        );
+        uc05Card.setOnMouseClicked(e -> {
+            try {
+                new CancelBookingUI().start(new Stage());
+                stage.close();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        // UC12 Card - Booking History
+        VBox uc12Card = makeCard(
+                "📋",
+                "Booking History",
+                "UC-12",
+                "View all your past and\ncurrent parking bookings",
+                "#0f3460",
+                "#4a9eff"
+        );
+        uc12Card.setOnMouseClicked(e -> {
+            try {
+                new BookingHistoryUI().start(new Stage());
+                stage.close();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        grid.add(uc03Card, 0, 0);
+        grid.add(uc04Card, 1, 0);
+        grid.add(uc05Card, 2, 0);
+        grid.add(uc12Card, 0, 1);
+
+        // ── BOTTOM BAR ──
+        HBox bottomBar = new HBox();
+        bottomBar.setPadding(new Insets(12, 25, 12, 25));
+        bottomBar.setStyle(
+                "-fx-background-color: #1a1a2e; " +
+                        "-fx-border-color: #2a2a4e; -fx-border-width: 1 0 0 0;");
+        bottomBar.setAlignment(Pos.CENTER_LEFT);
+
+        Label footerLabel = new Label(
+                "Smart Parking Allocation & Violation Enforcement System");
+        footerLabel.setFont(Font.font("Arial", 11));
+        footerLabel.setTextFill(Color.web("#555577"));
+        bottomBar.getChildren().add(footerLabel);
+
+        // ── MAIN LAYOUT ──
+        VBox mainLayout = new VBox();
+        mainLayout.setStyle("-fx-background-color: #1a1a2e;");
+        VBox.setVgrow(grid, Priority.ALWAYS);
+        mainLayout.getChildren().addAll(navbar, header, grid, bottomBar);
+
+        Scene scene = new Scene(mainLayout, 900, 600);
+        stage.setScene(scene);
+        stage.setMinWidth(800);
+        stage.setMinHeight(500);
+        stage.show();
+    }
+
+    private VBox makeCard(String icon, String title, String ucLabel,
+                          String description, String bgColor, String accentColor) {
+        VBox card = new VBox(12);
+        card.setPadding(new Insets(25));
+        card.setStyle("-fx-background-color: " + bgColor +
+                "; -fx-background-radius: 12; -fx-cursor: hand;");
+        card.setPrefWidth(250);
+        card.setPrefHeight(200);
+
+        Label iconLabel = new Label(icon);
+        iconLabel.setFont(Font.font(36));
+
+        Label uc = new Label(ucLabel);
+        uc.setFont(Font.font("Arial", FontWeight.BOLD, 11));
+        uc.setTextFill(Color.web(accentColor));
+        uc.setStyle("-fx-background-color: rgba(255,255,255,0.1); " +
+                "-fx-padding: 3 8; -fx-background-radius: 4;");
+
+        Label titleLabel = new Label(title);
+        titleLabel.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+        titleLabel.setTextFill(Color.WHITE);
+
+        Label descLabel = new Label(description);
+        descLabel.setFont(Font.font("Arial", 12));
+        descLabel.setTextFill(Color.web("#8888aa"));
+
+        Label arrow = new Label("→ Click to open");
+        arrow.setFont(Font.font("Arial", 12));
+        arrow.setTextFill(Color.web(accentColor));
+
+        card.getChildren().addAll(iconLabel, uc, titleLabel, descLabel, arrow);
+
+        card.setOnMouseEntered(e ->
+                card.setStyle("-fx-background-color: derive(" + bgColor +
+                        ", 20%); -fx-background-radius: 12; -fx-cursor: hand;")
+        );
+        card.setOnMouseExited(e ->
+                card.setStyle("-fx-background-color: " + bgColor +
+                        "; -fx-background-radius: 12; -fx-cursor: hand;")
+        );
+
+        return card;
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}

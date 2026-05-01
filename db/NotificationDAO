@@ -1,0 +1,75 @@
+package db;
+
+import bl.Notifications;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class NotificationDAO {
+
+    private Connection connection;
+
+    public NotificationDAO() {
+        connection = DBConnection.getInstance().getConnection();
+    }
+
+    // Get all notifications for a specific owner
+    public List<Notifications> getNotifications(int ownerId) {
+        List<Notifications> notifications = new ArrayList<>();
+
+        String query = "SELECT n.notif_id, n.message, n.sent_at, " +
+                "n.is_read, n.violation_id " +
+                "FROM notifications n " +
+                "WHERE n.owner_id = ? " +
+                "ORDER BY n.sent_at DESC";
+
+        try {
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setInt(1, ownerId);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                Notifications notif = new Notifications(
+                        rs.getInt("notif_id"),
+                        rs.getString("message"),
+                        rs.getString("sent_at"),
+                        rs.getBoolean("is_read"),
+                        rs.getInt("violation_id")
+                );
+                notifications.add(notif);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error fetching notifications: " + e.getMessage());
+        }
+
+        return notifications;
+    }
+
+    // Mark notification as read
+    public void markAsRead(int notifId) {
+        String query = "UPDATE notifications SET is_read = TRUE WHERE notif_id = ?";
+        try {
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setInt(1, notifId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Error marking notification as read: " + e.getMessage());
+        }
+    }
+
+    // Send a new violation notification
+    public void sendNotification(int ownerId, int violationId, String message) {
+        String query = "INSERT INTO notifications (owner_id, violation_id, message) " +
+                "VALUES (?, ?, ?)";
+        try {
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setInt(1, ownerId);
+            stmt.setInt(2, violationId);
+            stmt.setString(3, message);
+            stmt.executeUpdate();
+            System.out.println("Notification sent successfully!");
+        } catch (SQLException e) {
+            System.out.println("Error sending notification: " + e.getMessage());
+        }
+    }
+}

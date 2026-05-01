@@ -1,0 +1,244 @@
+package ui;
+
+import bl.Notifications;
+import bl.NotificationController;
+import javafx.application.Application;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.stage.Stage;
+import java.util.List;
+
+public class NotificationUI extends Application {
+
+    private NotificationController controller = new NotificationController();
+    private ObservableList<Notifications> data;
+    private ListView<HBox> notifList;
+
+    @Override
+    public void start(Stage stage) {
+        stage.setTitle("Smart Parking System");
+
+        // NAVBAR
+        HBox navbar = new HBox();
+        navbar.setPadding(new Insets(15, 25, 15, 25));
+        navbar.setStyle("-fx-background-color: #1a1a2e;");
+        navbar.setAlignment(Pos.CENTER_LEFT);
+
+        Label appName = new Label("Smart Parking System");
+        appName.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        appName.setTextFill(Color.WHITE);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Label ucLabel = new Label("Violation Notifications");
+        ucLabel.setFont(Font.font("Arial", 13));
+        ucLabel.setTextFill(Color.web("#a0a0c0"));
+
+        Button backBtn = new Button("<- Back");
+        backBtn.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: #a0a0c0; " +
+                        "-fx-font-size: 13px; -fx-cursor: hand; -fx-border-color: #2a2a4e; " +
+                        "-fx-border-radius: 6; -fx-padding: 5 12;"
+        );
+        backBtn.setOnAction(e -> {
+            DashboardUI dashboard = new DashboardUI();
+            Stage dashStage = new Stage();
+            try {
+                dashboard.start(dashStage);
+                stage.close();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+        navbar.getChildren().addAll(appName, spacer, ucLabel, backBtn);
+
+        // HEADER
+        VBox header = new VBox(5);
+        header.setPadding(new Insets(25, 25, 15, 25));
+        header.setStyle("-fx-background-color: #16213e;");
+
+        Label title = new Label("Violation Notifications");
+        title.setFont(Font.font("Arial", FontWeight.BOLD, 26));
+        title.setTextFill(Color.WHITE);
+
+        Label subtitle = new Label("View all parking violation notices issued to you");
+        subtitle.setFont(Font.font("Arial", 13));
+        subtitle.setTextFill(Color.web("#8888aa"));
+
+        // Stats
+        List<Notifications> notifications = controller.getNotifications(1);
+        long unreadCount = notifications.stream().filter(n -> !n.isRead()).count();
+
+        HBox statsBar = new HBox(15);
+        statsBar.setPadding(new Insets(15, 0, 5, 0));
+        statsBar.getChildren().addAll(
+                statCard("Total", String.valueOf(notifications.size()), "#0f3460"),
+                statCard("Unread", String.valueOf(unreadCount), "#3d0f0f"),
+                statCard("Read", String.valueOf(notifications.size() - unreadCount), "#0f3d1a")
+        );
+
+        header.getChildren().addAll(title, subtitle, statsBar);
+
+        // NOTIFICATION LIST
+        notifList = new ListView<>();
+        notifList.setStyle("-fx-background-color: #1a1a2e; -fx-border-color: #2a2a4e;");
+
+        data = FXCollections.observableArrayList(notifications);
+        refreshList(notifications);
+
+        // BUTTONS
+        HBox buttonBar = new HBox(10);
+        buttonBar.setPadding(new Insets(15, 25, 15, 25));
+        buttonBar.setStyle("-fx-background-color: #16213e;");
+        buttonBar.setAlignment(Pos.CENTER_LEFT);
+
+        Button markReadBtn = new Button("Mark Selected as Read");
+        markReadBtn.setStyle(
+                "-fx-background-color: #1a472a; -fx-text-fill: white; " +
+                        "-fx-font-size: 13px; -fx-padding: 8 16; -fx-background-radius: 6; " +
+                        "-fx-cursor: hand;"
+        );
+
+        Button refreshBtn = new Button("Refresh");
+        refreshBtn.setStyle(
+                "-fx-background-color: #0f3460; -fx-text-fill: white; " +
+                        "-fx-font-size: 13px; -fx-padding: 8 16; -fx-background-radius: 6; " +
+                        "-fx-cursor: hand;"
+        );
+
+        markReadBtn.setOnAction(e -> {
+            int selectedIndex = notifList.getSelectionModel().getSelectedIndex();
+            if (selectedIndex >= 0) {
+                Notifications selected = notifications.get(selectedIndex);
+                controller.markAsRead(selected.getNotifId());
+                List<Notifications> updated = controller.getNotifications(1);
+                refreshList(updated);
+                showAlert("Success", "Notification marked as read!");
+            } else {
+                showAlert("Warning", "Please select a notification first!");
+            }
+        });
+
+        refreshBtn.setOnAction(e -> {
+            List<Notifications> updated = controller.getNotifications(1);
+            refreshList(updated);
+        });
+
+        buttonBar.getChildren().addAll(markReadBtn, refreshBtn);
+
+        // BOTTOM BAR
+        HBox bottomBar = new HBox();
+        bottomBar.setPadding(new Insets(12, 25, 12, 25));
+        bottomBar.setStyle("-fx-background-color: #1a1a2e; " +
+                "-fx-border-color: #2a2a4e; -fx-border-width: 1 0 0 0;");
+        bottomBar.setAlignment(Pos.CENTER_LEFT);
+
+        Label footerLabel = new Label(
+                "Smart Parking Allocation & Violation Enforcement System ");
+        footerLabel.setFont(Font.font("Arial", 11));
+        footerLabel.setTextFill(Color.web("#555577"));
+        bottomBar.getChildren().add(footerLabel);
+
+        // MAIN LAYOUT
+        VBox mainLayout = new VBox();
+        mainLayout.setStyle("-fx-background-color: #1a1a2e;");
+
+        VBox listContainer = new VBox(notifList);
+        listContainer.setPadding(new Insets(15, 25, 15, 25));
+        listContainer.setStyle("-fx-background-color: #1a1a2e;");
+        VBox.setVgrow(notifList, Priority.ALWAYS);
+
+        mainLayout.getChildren().addAll(navbar, header, buttonBar, listContainer, bottomBar);
+        VBox.setVgrow(listContainer, Priority.ALWAYS);
+
+        Scene scene = new Scene(mainLayout, 900, 600);
+        stage.setScene(scene);
+        stage.setMinWidth(800);
+        stage.setMinHeight(500);
+        stage.show();
+    }
+
+    private void refreshList(List<Notifications> notifications) {
+        notifList.getItems().clear();
+        for (Notifications n : notifications) {
+            HBox card = new HBox(15);
+            card.setPadding(new Insets(12, 15, 12, 15));
+            card.setAlignment(Pos.CENTER_LEFT);
+
+            String cardColor = n.isRead() ? "#1e1e3a" : "#2a1a1a";
+            card.setStyle("-fx-background-color: " + cardColor +
+                    "; -fx-background-radius: 8;");
+
+            // Message area
+            VBox msgBox = new VBox(3);
+            HBox.setHgrow(msgBox, Priority.ALWAYS);
+
+            Label msgLabel = new Label(n.getMessage());
+            msgLabel.setFont(Font.font("Arial", FontWeight.BOLD, 13));
+            msgLabel.setTextFill(Color.WHITE);
+            msgLabel.setWrapText(true);
+
+            Label timeLabel = new Label("Time: " + n.getSentAt() +
+                    "   |   Violation ID: #" + n.getViolationId());
+            timeLabel.setFont(Font.font("Arial", 11));
+            timeLabel.setTextFill(Color.web("#8888aa"));
+
+            msgBox.getChildren().addAll(msgLabel, timeLabel);
+
+            // Status badge
+            Label statusBadge = new Label(n.isRead() ? "READ" : "UNREAD");
+            statusBadge.setFont(Font.font("Arial", FontWeight.BOLD, 11));
+            statusBadge.setPadding(new Insets(4, 10, 4, 10));
+            if (n.isRead()) {
+                statusBadge.setStyle("-fx-background-color: #1a472a; " +
+                        "-fx-text-fill: #51cf66; -fx-background-radius: 10;");
+            } else {
+                statusBadge.setStyle("-fx-background-color: #4a1a1a; " +
+                        "-fx-text-fill: #ff6b6b; -fx-background-radius: 10;");
+            }
+
+            card.getChildren().addAll(msgBox, statusBadge);
+            notifList.getItems().add(card);
+        }
+    }
+
+    private void showAlert(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private VBox statCard(String label, String value, String bgColor) {
+        VBox card = new VBox(3);
+        card.setPadding(new Insets(10, 20, 10, 20));
+        card.setStyle("-fx-background-color: " + bgColor +
+                "; -fx-background-radius: 8;");
+        card.setAlignment(Pos.CENTER);
+
+        Label val = new Label(value);
+        val.setFont(Font.font("Arial", FontWeight.BOLD, 22));
+        val.setTextFill(Color.WHITE);
+
+        Label lbl = new Label(label);
+        lbl.setFont(Font.font("Arial", 12));
+        lbl.setTextFill(Color.web("#8888aa"));
+
+        card.getChildren().addAll(val, lbl);
+        return card;
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}

@@ -1,1 +1,321 @@
+package ui;
+
+import bl.BookingController;
+import bl.ParkingSlot;
+import bl.ParkingSlotController;
+import javafx.application.Application;
+import javafx.collections.FXCollections;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.stage.Stage;
+import java.time.LocalDate;
+import java.util.List;
+
+
+public class BookSlotUI extends Application {
+
+    // Placeholder session values - replace with actual session data
+    private static final int OWNER_ID   = 1;
+    private static final int VEHICLE_ID = 1;
+
+    @Override
+    public void start(Stage stage) {
+        stage.setTitle("Smart Parking System - Book a Slot");
+
+        // ── NAVBAR ────────────────────────────────────────────────────────────
+        HBox navbar = new HBox();
+        navbar.setPadding(new Insets(15, 25, 15, 25));
+        navbar.setStyle("-fx-background-color: #1a1a2e;");
+        navbar.setAlignment(Pos.CENTER_LEFT);
+
+        Label appName = new Label("🅿 Smart Parking System");
+        appName.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        appName.setTextFill(Color.WHITE);
+
+        Label ucLabel = new Label("UC04 - Book Parking Slot");
+        ucLabel.setFont(Font.font("Arial", 13));
+        ucLabel.setTextFill(Color.web("#a0a0c0"));
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Button backBtn = new Button("← Back");
+        backBtn.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: #a0a0c0; " +
+                        "-fx-font-size: 13px; -fx-cursor: hand; " +
+                        "-fx-border-color: #2a2a4e; -fx-border-radius: 6; -fx-padding: 5 12;"
+        );
+        backBtn.setOnAction(e -> {
+            ViewSlotsUI slotsUI = new ViewSlotsUI();
+            Stage slotsStage = new Stage();
+            try {
+                slotsUI.start(slotsStage);
+                stage.close();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        navbar.getChildren().addAll(appName, spacer, ucLabel, backBtn);
+
+        // ── HEADER ────────────────────────────────────────────────────────────
+        VBox header = new VBox(5);
+        header.setPadding(new Insets(25, 25, 15, 25));
+        header.setStyle("-fx-background-color: #16213e;");
+
+        Label title = new Label("Book a Parking Slot");
+        title.setFont(Font.font("Arial", FontWeight.BOLD, 26));
+        title.setTextFill(Color.WHITE);
+
+        Label subtitle = new Label(
+                "Select an available slot, choose your time, and confirm your booking");
+        subtitle.setFont(Font.font("Arial", 13));
+        subtitle.setTextFill(Color.web("#8888aa"));
+
+        header.getChildren().addAll(title, subtitle);
+
+        // ── AVAILABLE SLOTS TABLE ─────────────────────────────────────────────
+        ParkingSlotController slotController = new ParkingSlotController();
+        List<ParkingSlot> availableSlots = slotController.viewAvailableSlots();
+
+        Label tableLabel = new Label("Available Slots — Select one:");
+        tableLabel.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+        tableLabel.setTextFill(Color.web("#a0a0c0"));
+
+        TableView<ParkingSlot> slotTable = new TableView<>();
+        slotTable.setStyle(
+                "-fx-background-color: #1a1a2e;" +
+                        "-fx-table-cell-border-color: #2a2a4e;"
+        );
+        slotTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        slotTable.setPrefHeight(200);
+
+        TableColumn<ParkingSlot, Integer> idCol  =
+                makeSlotCol("Slot ID",     "slotId",     70);
+        TableColumn<ParkingSlot, String> numCol  =
+                makeSlotCol("Slot Number", "slotNumber", 110);
+        TableColumn<ParkingSlot, String> zoneCol =
+                makeSlotCol("Zone",        "zone",       90);
+        TableColumn<ParkingSlot, String> typeCol =
+                makeSlotCol("Type",        "slotType",   110);
+
+        // Status always green here since we only show available
+        TableColumn<ParkingSlot, String> statusCol = new TableColumn<>("Status");
+        statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+        statusCol.setMinWidth(100);
+        statusCol.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String s, boolean empty) {
+                super.updateItem(s, empty);
+                if (empty || s == null) { setText(null); setStyle(""); }
+                else {
+                    setText("  AVAILABLE  ");
+                    setStyle("-fx-background-color: #1a472a; " +
+                            "-fx-text-fill: #51cf66; " +
+                            "-fx-background-radius: 10; " +
+                            "-fx-font-weight: bold;");
+                }
+            }
+        });
+
+        slotTable.getColumns().addAll(idCol, numCol, zoneCol, typeCol, statusCol);
+        slotTable.setItems(FXCollections.observableArrayList(availableSlots));
+
+        // Row hover
+        slotTable.setRowFactory(tv -> {
+            TableRow<ParkingSlot> row = new TableRow<>();
+            row.setStyle("-fx-background-color: #1a1a2e;");
+            row.hoverProperty().addListener((obs, was, is) -> {
+                if (is && !row.isEmpty())
+                    row.setStyle("-fx-background-color: #2a2a4e;");
+                else
+                    row.setStyle("-fx-background-color: #1a1a2e;");
+            });
+            return row;
+        });
+
+        // ── BOOKING FORM ──────────────────────────────────────────────────────
+        Label formTitle = new Label("Booking Details");
+        formTitle.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+        formTitle.setTextFill(Color.WHITE);
+
+        // Date picker
+        Label dateLabel = new Label("Booking Date:");
+        dateLabel.setTextFill(Color.web("#a0a0c0"));
+        DatePicker datePicker = new DatePicker(LocalDate.now());
+        datePicker.setStyle(
+                "-fx-background-color: #0f3460; -fx-text-fill: white;");
+        datePicker.setPrefWidth(200);
+
+        // Start time
+        Label startLabel = new Label("Start Time (HH:mm):");
+        startLabel.setTextFill(Color.web("#a0a0c0"));
+        TextField startField = new TextField();
+        startField.setPromptText("e.g. 09:00");
+        startField.setStyle(
+                "-fx-background-color: #0f3460; -fx-text-fill: white; " +
+                        "-fx-prompt-text-fill: #555577;");
+        startField.setPrefWidth(150);
+
+        // End time
+        Label endLabel = new Label("End Time (HH:mm):");
+        endLabel.setTextFill(Color.web("#a0a0c0"));
+        TextField endField = new TextField();
+        endField.setPromptText("e.g. 11:00");
+        endField.setStyle(
+                "-fx-background-color: #0f3460; -fx-text-fill: white; " +
+                        "-fx-prompt-text-fill: #555577;");
+        endField.setPrefWidth(150);
+
+        // Selected slot display
+        Label selectedLabel = new Label("Selected Slot: None");
+        selectedLabel.setTextFill(Color.web("#ffd43b"));
+        selectedLabel.setFont(Font.font("Arial", FontWeight.BOLD, 13));
+
+        slotTable.getSelectionModel().selectedItemProperty().addListener(
+                (obs, old, selected) -> {
+                    if (selected != null) {
+                        selectedLabel.setText("Selected Slot: " +
+                                selected.getSlotNumber() + " | Zone: " +
+                                selected.getZone() + " | Type: " +
+                                selected.getSlotType());
+                    }
+                });
+
+        // Form grid
+        GridPane form = new GridPane();
+        form.setHgap(20);
+        form.setVgap(12);
+        form.add(dateLabel,  0, 0); form.add(datePicker, 1, 0);
+        form.add(startLabel, 0, 1); form.add(startField, 1, 1);
+        form.add(endLabel,   0, 2); form.add(endField,   1, 2);
+        form.add(selectedLabel, 0, 3, 2, 1);
+
+        // ── CONFIRM BUTTON ────────────────────────────────────────────────────
+        Button confirmBtn = new Button("✔ Confirm Booking");
+        confirmBtn.setStyle(
+                "-fx-background-color: #533483; -fx-text-fill: white; " +
+                        "-fx-font-size: 14px; -fx-cursor: hand; " +
+                        "-fx-background-radius: 8; -fx-padding: 10 24;"
+        );
+
+        Label resultLabel = new Label();
+        resultLabel.setFont(Font.font("Arial", 13));
+
+        confirmBtn.setOnAction(e -> {
+            ParkingSlot selected = slotTable.getSelectionModel()
+                    .getSelectedItem();
+            if (selected == null) {
+                resultLabel.setTextFill(Color.web("#ff6b6b"));
+                resultLabel.setText("⚠  Please select a slot from the table.");
+                return;
+            }
+            if (datePicker.getValue() == null) {
+                resultLabel.setTextFill(Color.web("#ff6b6b"));
+                resultLabel.setText("⚠  Please select a date.");
+                return;
+            }
+
+            // Validate time format (HH:mm)
+            String start = startField.getText().trim();
+            String end   = endField.getText().trim();
+            if (!start.matches("\\d{2}:\\d{2}") ||
+                    !end.matches("\\d{2}:\\d{2}")) {
+                resultLabel.setTextFill(Color.web("#ff6b6b"));
+                resultLabel.setText("⚠  Time must be in HH:mm format (e.g. 09:00).");
+                return;
+            }
+
+            String date = datePicker.getValue().toString(); // yyyy-MM-dd
+
+            // Call BL controller
+            BookingController bookingCtrl = new BookingController();
+            String result = bookingCtrl.bookSlot(
+                    OWNER_ID, selected.getSlotId(), VEHICLE_ID,
+                    date, start, end
+            );
+
+            if (result.startsWith("SUCCESS")) {
+                resultLabel.setTextFill(Color.web("#51cf66"));
+                resultLabel.setText("✔  " + result);
+                // Refresh table to remove newly booked slot
+                List<ParkingSlot> refreshed = slotController.viewAvailableSlots();
+                slotTable.setItems(
+                        FXCollections.observableArrayList(refreshed));
+                selectedLabel.setText("Selected Slot: None");
+            } else {
+                resultLabel.setTextFill(Color.web("#ff6b6b"));
+                resultLabel.setText("✘  " + result);
+            }
+        });
+
+        // ── BODY LAYOUT ───────────────────────────────────────────────────────
+        VBox body = new VBox(15);
+        body.setPadding(new Insets(20, 25, 20, 25));
+        body.setStyle("-fx-background-color: #1a1a2e;");
+        body.getChildren().addAll(
+                tableLabel, slotTable,
+                new Separator(),
+                formTitle, form,
+                confirmBtn, resultLabel
+        );
+
+        // Separator styling
+        for (javafx.scene.Node n : body.getChildren()) {
+            if (n instanceof Separator) {
+                ((Separator) n).setStyle("-fx-background-color: #2a2a4e;");
+            }
+        }
+
+        // ── FOOTER ────────────────────────────────────────────────────────────
+        HBox footer = new HBox();
+        footer.setPadding(new Insets(12, 25, 12, 25));
+        footer.setStyle(
+                "-fx-background-color: #1a1a2e; " +
+                        "-fx-border-color: #2a2a4e; -fx-border-width: 1 0 0 0;");
+        Label footerLbl = new Label(
+                "Smart Parking Allocation & Violation Enforcement System");
+        footerLbl.setFont(Font.font("Arial", 11));
+        footerLbl.setTextFill(Color.web("#555577"));
+        footer.getChildren().add(footerLbl);
+
+        // ── MAIN LAYOUT ───────────────────────────────────────────────────────
+        ScrollPane scroll = new ScrollPane(body);
+        scroll.setFitToWidth(true);
+        scroll.setStyle("-fx-background-color: #1a1a2e; -fx-background: #1a1a2e;");
+
+        VBox mainLayout = new VBox();
+        mainLayout.setStyle("-fx-background-color: #1a1a2e;");
+        VBox.setVgrow(scroll, Priority.ALWAYS);
+        mainLayout.getChildren().addAll(navbar, header, scroll, footer);
+
+        Scene scene = new Scene(mainLayout, 900, 680);
+        stage.setScene(scene);
+        stage.setMinWidth(800);
+        stage.setMinHeight(550);
+        stage.show();
+    }
+
+    // ── Column factory helper ─────────────────────────────────────────────────
+    private <T> TableColumn<ParkingSlot, T> makeSlotCol(
+            String title, String field, int minWidth) {
+        TableColumn<ParkingSlot, T> col = new TableColumn<>(title);
+        col.setCellValueFactory(new PropertyValueFactory<>(field));
+        col.setMinWidth(minWidth);
+        col.setStyle("-fx-text-fill: white;");
+        return col;
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}
+
 

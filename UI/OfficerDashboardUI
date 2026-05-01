@@ -1,0 +1,159 @@
+package ui;
+
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.stage.Stage;
+
+public class OfficerDashboardUI extends Application {
+
+    @Override
+    public void start(Stage stage) {
+        stage.setTitle("Smart Parking System - Officer Dashboard");
+
+        // ── NAVBAR ──
+        HBox navbar = new HBox();
+        navbar.setPadding(new Insets(15, 25, 15, 25));
+        navbar.setStyle("-fx-background-color: #1a1a2e;");
+        navbar.setAlignment(Pos.CENTER_LEFT);
+
+        Label appName = new Label("🅿 Smart Parking System");
+        appName.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        appName.setTextFill(Color.WHITE);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Button logoutBtn = new Button("⇐ Logout");
+        logoutBtn.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: #a0a0c0; " +
+                        "-fx-font-size: 13px; -fx-cursor: hand; -fx-border-color: #2a2a4e; " +
+                        "-fx-border-radius: 6; -fx-padding: 5 12;"
+        );
+        logoutBtn.setOnAction(e -> {
+            try {
+                new LoginUI().start(stage);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        navbar.getChildren().addAll(appName, spacer, logoutBtn);
+
+        // ── HEADER ──
+        VBox header = new VBox(5);
+        header.setPadding(new Insets(30, 25, 20, 25));
+        header.setStyle("-fx-background-color: #16213e;");
+
+        Label welcome = new Label("Officer Dashboard 👮");
+        welcome.setFont(Font.font("Arial", FontWeight.BOLD, 28));
+        welcome.setTextFill(Color.WHITE);
+
+        Label subtitle = new Label("Parking enforcement tools");
+        subtitle.setFont(Font.font("Arial", 14));
+        subtitle.setTextFill(Color.web("#8888aa"));
+
+        header.getChildren().addAll(welcome, subtitle);
+
+        // ── CARD ──
+        GridPane grid = new GridPane();
+        grid.setPadding(new Insets(30, 25, 30, 25));
+        grid.setHgap(20);
+        grid.setVgap(20);
+        grid.setStyle("-fx-background-color: #1a1a2e;");
+
+        VBox uc13Card = makeCard(
+                "🔍", "Scan License Plate", "",
+                "Check vehicle booking\nstatus by plate number",
+                "#0f3d1a", "#51cf66"
+        );
+        uc13Card.setOnMouseClicked(e -> {
+            try {
+                ScanPlateUI scanUI = new ScanPlateUI();
+                Stage newStage = new Stage();
+                scanUI.start(newStage);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        grid.add(uc13Card, 0, 0);
+
+        // ── BOTTOM BAR ──
+        HBox bottomBar = new HBox();
+        bottomBar.setPadding(new Insets(12, 25, 12, 25));
+        bottomBar.setStyle("-fx-background-color: #1a1a2e; " +
+                "-fx-border-color: #2a2a4e; -fx-border-width: 1 0 0 0;");
+        bottomBar.setAlignment(Pos.CENTER_LEFT);
+
+        Label footer = new Label(
+                "Smart Parking Allocation & Violation Enforcement System");
+        footer.setFont(Font.font("Arial", 11));
+        footer.setTextFill(Color.web("#555577"));
+        bottomBar.getChildren().add(footer);
+
+        // ── MAIN LAYOUT ──
+        VBox mainLayout = new VBox();
+        mainLayout.setStyle("-fx-background-color: #1a1a2e;");
+        VBox.setVgrow(grid, Priority.ALWAYS);
+        mainLayout.getChildren().addAll(navbar, header, grid, bottomBar);
+
+        Scene scene = new Scene(mainLayout, 900, 600);
+        stage.setScene(scene);
+        stage.show();
+    }
+
+    private VBox makeCard(String icon, String title, String ucLabel,
+                          String description, String bgColor, String accentColor) {
+        VBox card = new VBox(12);
+        card.setPadding(new Insets(25));
+        card.setStyle("-fx-background-color: " + bgColor +
+                "; -fx-background-radius: 12; -fx-cursor: hand;");
+        card.setPrefWidth(250);
+        card.setPrefHeight(200);
+
+        Label iconLabel = new Label(icon);
+        iconLabel.setFont(Font.font(36));
+
+        Label uc = new Label(ucLabel);
+        uc.setFont(Font.font("Arial", FontWeight.BOLD, 11));
+        uc.setTextFill(Color.web(accentColor));
+        uc.setStyle("-fx-background-color: rgba(255,255,255,0.1); " +
+                "-fx-padding: 3 8; -fx-background-radius: 4;");
+
+        Label titleLabel = new Label(title);
+        titleLabel.setFont(Font.font("Arial", FontWeight.BOLD, 16));
+        titleLabel.setTextFill(Color.WHITE);
+
+        Label descLabel = new Label(description);
+        descLabel.setFont(Font.font("Arial", 12));
+        descLabel.setTextFill(Color.web("#8888aa"));
+
+        Label arrow = new Label("→ Click to open");
+        arrow.setFont(Font.font("Arial", 12));
+        arrow.setTextFill(Color.web(accentColor));
+
+        card.getChildren().addAll(iconLabel, uc, titleLabel, descLabel, arrow);
+
+        card.setOnMouseEntered(e ->
+                card.setStyle("-fx-background-color: derive(" + bgColor +
+                        ", 20%); -fx-background-radius: 12; -fx-cursor: hand;")
+        );
+        card.setOnMouseExited(e ->
+                card.setStyle("-fx-background-color: " + bgColor +
+                        "; -fx-background-radius: 12; -fx-cursor: hand;")
+        );
+
+        return card;
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}

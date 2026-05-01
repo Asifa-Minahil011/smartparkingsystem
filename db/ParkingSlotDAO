@@ -1,0 +1,100 @@
+package db;
+
+import bl.ParkingSlot;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+
+
+public class ParkingSlotDAO {
+
+    private final Connection connection;
+
+    public ParkingSlotDAO() {
+        connection = DBConnection.getInstance().getConnection();
+    }
+    public List<ParkingSlot> getAvailableSlots() {
+        List<ParkingSlot> slots = new ArrayList<>();
+        String query = "SELECT slot_id, slot_number, zone, status, slot_type " +
+                "FROM parking_slots WHERE status = 'available' " +
+                "ORDER BY zone, slot_number";
+        try {
+            PreparedStatement stmt = connection.prepareStatement(query);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                ParkingSlot slot = new ParkingSlot(
+                        rs.getInt("slot_id"),
+                        rs.getString("slot_number"),
+                        rs.getString("zone"),
+                        rs.getString("status"),
+                        rs.getString("slot_type")
+                );
+                slots.add(slot);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error fetching available slots: " + e.getMessage());
+        }
+        return slots;
+    }
+    public List<ParkingSlot> getAllSlots() {
+        List<ParkingSlot> slots = new ArrayList<>();
+        String query = "SELECT slot_id, slot_number, zone, status, slot_type " +
+                "FROM parking_slots ORDER BY zone, slot_number";
+        try {
+            PreparedStatement stmt = connection.prepareStatement(query);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                ParkingSlot slot = new ParkingSlot(
+                        rs.getInt("slot_id"),
+                        rs.getString("slot_number"),
+                        rs.getString("zone"),
+                        rs.getString("status"),
+                        rs.getString("slot_type")
+                );
+                slots.add(slot);
+            }
+        } catch (SQLException e) {
+            System.out.println("Error fetching all slots: " + e.getMessage());
+        }
+        return slots;
+    }
+
+
+    public boolean updateSlotStatus(int slotId, String status) {
+        String query = "UPDATE parking_slots SET status = ? WHERE slot_id = ?";
+        try {
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setString(1, status);
+            stmt.setInt(2, slotId);
+            int rows = stmt.executeUpdate();
+            return rows > 0;
+        } catch (SQLException e) {
+            System.out.println("Error updating slot status: " + e.getMessage());
+            return false;
+        }
+    }
+
+
+    public ParkingSlot getSlotById(int slotId) {
+        String query = "SELECT slot_id, slot_number, zone, status, slot_type " +
+                "FROM parking_slots WHERE slot_id = ?";
+        try {
+            PreparedStatement stmt = connection.prepareStatement(query);
+            stmt.setInt(1, slotId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return new ParkingSlot(
+                        rs.getInt("slot_id"),
+                        rs.getString("slot_number"),
+                        rs.getString("zone"),
+                        rs.getString("status"),
+                        rs.getString("slot_type")
+                );
+            }
+        } catch (SQLException e) {
+            System.out.println("Error fetching slot by ID: " + e.getMessage());
+        }
+        return null;
+    }
+}
+

@@ -17,7 +17,6 @@ import javafx.scene.text.FontWeight;
 import javafx.stage.Stage;
 import java.util.List;
 
-
 public class ViewSlotsUI extends Application {
 
     @Override
@@ -41,7 +40,6 @@ public class ViewSlotsUI extends Application {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        // Refresh button - re-queries DB for real-time data
         Button refreshBtn = new Button("⟳ Refresh");
         refreshBtn.setStyle(
                 "-fx-background-color: #0f3460; -fx-text-fill: white; " +
@@ -66,18 +64,17 @@ public class ViewSlotsUI extends Application {
             }
         });
 
-        navbar.getChildren().addAll(appName, spacer, ucLabel,
-                refreshBtn, backBtn);
+        navbar.getChildren().addAll(appName, spacer, ucLabel, refreshBtn, backBtn);
 
-        // ── FETCH DATA from BL layer ──────────────────────────────────────────
+        // ── CONTROLLER ───────────────────────────────────────────────────────
         ParkingSlotController controller = new ParkingSlotController();
-        List<ParkingSlot> allSlots = controller.getAllSlots();
 
-        int total     = controller.countTotalSlots();
-        int available = controller.countAvailableSlots();
-        int reserved  = controller.countReservedSlots();
+        // ── STAT CARDS (wrapped in array so lambdas can update them) ─────────
+        Label[] totalVal     = { new Label() };
+        Label[] availableVal = { new Label() };
+        Label[] reservedVal  = { new Label() };
 
-        // ── HEADER with stat cards ────────────────────────────────────────────
+        // ── HEADER ───────────────────────────────────────────────────────────
         VBox header = new VBox(5);
         header.setPadding(new Insets(25, 25, 15, 25));
         header.setStyle("-fx-background-color: #16213e;");
@@ -91,13 +88,14 @@ public class ViewSlotsUI extends Application {
         subtitle.setFont(Font.font("Arial", 13));
         subtitle.setTextFill(Color.web("#8888aa"));
 
+        // Build stat cards with mutable labels
+        VBox totalCard     = buildStatCard("Total Slots",  "#0f3460", totalVal[0]);
+        VBox availableCard = buildStatCard("Available",    "#1a472a", availableVal[0]);
+        VBox reservedCard  = buildStatCard("Reserved",     "#4a1a1a", reservedVal[0]);
+
         HBox statsBar = new HBox(15);
         statsBar.setPadding(new Insets(15, 0, 5, 0));
-        statsBar.getChildren().addAll(
-                statCard("Total Slots",  String.valueOf(total),     "#0f3460"),
-                statCard("Available",    String.valueOf(available),  "#1a472a"),
-                statCard("Reserved",     String.valueOf(reserved),   "#4a1a1a")
-        );
+        statsBar.getChildren().addAll(totalCard, availableCard, reservedCard);
 
         header.getChildren().addAll(title, subtitle, statsBar);
 
@@ -115,9 +113,7 @@ public class ViewSlotsUI extends Application {
         filterBox.getItems().addAll("All", "available", "reserved", "occupied");
         filterBox.setValue("All");
         filterBox.setStyle(
-                "-fx-background-color: #0f3460; -fx-text-fill: white; " +
-                        "-fx-font-size: 13px;"
-        );
+                "-fx-background-color: #0f3460; -fx-text-fill: white; -fx-font-size: 13px;");
 
         Label zoneLabel = new Label("Filter by Zone:");
         zoneLabel.setTextFill(Color.web("#a0a0c0"));
@@ -125,17 +121,11 @@ public class ViewSlotsUI extends Application {
 
         ComboBox<String> zoneBox = new ComboBox<>();
         zoneBox.getItems().add("All");
-        allSlots.stream().map(ParkingSlot::getZone)
-                .distinct().sorted()
-                .forEach(z -> zoneBox.getItems().add(z));
         zoneBox.setValue("All");
         zoneBox.setStyle(
-                "-fx-background-color: #0f3460; -fx-text-fill: white; " +
-                        "-fx-font-size: 13px;"
-        );
+                "-fx-background-color: #0f3460; -fx-text-fill: white; -fx-font-size: 13px;");
 
-        filterBar.getChildren().addAll(
-                filterLabel, filterBox, zoneLabel, zoneBox);
+        filterBar.getChildren().addAll(filterLabel, filterBox, zoneLabel, zoneBox);
 
         // ── TABLE ─────────────────────────────────────────────────────────────
         TableView<ParkingSlot> table = new TableView<>();
@@ -147,16 +137,11 @@ public class ViewSlotsUI extends Application {
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         table.setPlaceholder(new Label("No slots found."));
 
-        TableColumn<ParkingSlot, Integer> idCol   =
-                makeColumn("Slot ID",     "slotId",     80);
-        TableColumn<ParkingSlot, String> numCol   =
-                makeColumn("Slot Number", "slotNumber", 110);
-        TableColumn<ParkingSlot, String> zoneCol  =
-                makeColumn("Zone",        "zone",       100);
-        TableColumn<ParkingSlot, String> typeCol  =
-                makeColumn("Type",        "slotType",   110);
+        TableColumn<ParkingSlot, Integer> idCol  = makeColumn("Slot ID",     "slotId",     80);
+        TableColumn<ParkingSlot, String> numCol   = makeColumn("Slot Number", "slotNumber", 110);
+        TableColumn<ParkingSlot, String> zoneCol  = makeColumn("Zone",        "zone",       100);
+        TableColumn<ParkingSlot, String> typeCol  = makeColumn("Type",        "slotType",   110);
 
-        // Status column - color coded
         TableColumn<ParkingSlot, String> statusCol = new TableColumn<>("Status");
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         statusCol.setMinWidth(110);
@@ -193,10 +178,35 @@ public class ViewSlotsUI extends Application {
 
         table.getColumns().addAll(idCol, numCol, zoneCol, typeCol, statusCol);
 
-        // Load data
-        ObservableList<ParkingSlot> data =
-                FXCollections.observableArrayList(allSlots);
-        table.setItems(data);
+        // ── OBSERVABLE LIST ───────────────────────────────────────────────────
+        ObservableList<ParkingSlot> data = FXCollections.observableArrayList();
+
+        // ── LOAD DATA helper (reusable for refresh too) ───────────────────────
+        Runnable loadData = () -> {
+            // Auto-release expired bookings first
+            controller.refreshSlotStatuses();
+
+            List<ParkingSlot> fresh = controller.getAllSlots();
+            data.setAll(fresh);
+            table.setItems(data);
+
+            // Update stat cards
+            totalVal[0].setText(String.valueOf(controller.countTotalSlots()));
+            availableVal[0].setText(String.valueOf(controller.countAvailableSlots()));
+            reservedVal[0].setText(String.valueOf(controller.countReservedSlots()));
+
+            // Rebuild zone filter
+            String currentZone = zoneBox.getValue();
+            zoneBox.getItems().clear();
+            zoneBox.getItems().add("All");
+            fresh.stream().map(ParkingSlot::getZone)
+                    .distinct().sorted()
+                    .forEach(z -> zoneBox.getItems().add(z));
+            zoneBox.setValue(currentZone != null ? currentZone : "All");
+        };
+
+        // Initial load
+        loadData.run();
 
         // Row hover style
         table.setRowFactory(tv -> {
@@ -213,20 +223,18 @@ public class ViewSlotsUI extends Application {
 
         // ── FILTER LOGIC ──────────────────────────────────────────────────────
         filterBox.setOnAction(e -> applyFilter(
-                table, allSlots, filterBox.getValue(), zoneBox.getValue()));
+                table, data, filterBox.getValue(), zoneBox.getValue()));
         zoneBox.setOnAction(e -> applyFilter(
-                table, allSlots, filterBox.getValue(), zoneBox.getValue()));
+                table, data, filterBox.getValue(), zoneBox.getValue()));
 
         // ── REFRESH LOGIC ─────────────────────────────────────────────────────
         refreshBtn.setOnAction(e -> {
-            List<ParkingSlot> fresh = controller.getAllSlots();
-            data.setAll(fresh);
-            table.setItems(data);
+            loadData.run();   // refreshSlotStatuses() + reload + update cards
             showAlert(Alert.AlertType.INFORMATION, "Refreshed",
                     "Parking slot data has been updated.");
         });
 
-        // ── BOOK BUTTON (navigates to BookSlotUI) ─────────────────────────────
+        // ── BOOK BUTTON ───────────────────────────────────────────────────────
         Button bookBtn = new Button("📅 Book a Slot");
         bookBtn.setStyle(
                 "-fx-background-color: #533483; -fx-text-fill: white; " +
@@ -244,7 +252,7 @@ public class ViewSlotsUI extends Application {
             }
         });
 
-        // ── BOTTOM ACTION BAR ─────────────────────────────────────────────────
+        // ── BOTTOM BAR ────────────────────────────────────────────────────────
         HBox bottomBar = new HBox(10);
         bottomBar.setPadding(new Insets(12, 25, 12, 25));
         bottomBar.setStyle(
@@ -284,7 +292,7 @@ public class ViewSlotsUI extends Application {
 
     // ── Filter helper ─────────────────────────────────────────────────────────
     private void applyFilter(TableView<ParkingSlot> table,
-                             List<ParkingSlot> allSlots,
+                             ObservableList<ParkingSlot> allSlots,
                              String statusFilter, String zoneFilter) {
         ObservableList<ParkingSlot> filtered = FXCollections.observableArrayList();
         for (ParkingSlot slot : allSlots) {
@@ -307,25 +315,25 @@ public class ViewSlotsUI extends Application {
         return col;
     }
 
-    // ── Stat card widget ──────────────────────────────────────────────────────
-    private VBox statCard(String label, String value, String bgColor) {
+    // ── Stat card with mutable label ──────────────────────────────────────────
+    private VBox buildStatCard(String label, String bgColor, Label valueLabel) {
         VBox card = new VBox(3);
         card.setPadding(new Insets(10, 20, 10, 20));
         card.setStyle("-fx-background-color: " + bgColor +
                 "; -fx-background-radius: 8;");
         card.setAlignment(Pos.CENTER);
 
-        Label val = new Label(value);
-        val.setFont(Font.font("Arial", FontWeight.BOLD, 22));
-        val.setTextFill(Color.WHITE);
+        valueLabel.setFont(Font.font("Arial", FontWeight.BOLD, 22));
+        valueLabel.setTextFill(Color.WHITE);
 
         Label lbl = new Label(label);
         lbl.setFont(Font.font("Arial", 12));
         lbl.setTextFill(Color.web("#8888aa"));
 
-        card.getChildren().addAll(val, lbl);
+        card.getChildren().addAll(valueLabel, lbl);
         return card;
     }
+
     private void showAlert(Alert.AlertType type, String title, String msg) {
         Alert alert = new Alert(type);
         alert.setTitle(title);

@@ -1,0 +1,26 @@
+package bl;
+
+import db.NotificationDAO;
+import bl.Notifications;
+import java.util.List;
+
+public class NotificationController {
+
+    private final NotificationDAO notifDAO;
+
+    public NotificationController() {
+        this.notifDAO = new NotificationDAO();
+    }
+
+    public List<Notifications> getNotifications(int ownerId) {
+        return notifDAO.getNotifications(ownerId);
+    }
+
+    public void markAsRead(int notifId) {
+        notifDAO.markAsRead(notifId);
+    }
+
+    public void sendNotification(int ownerId, int violationId, String message) {
+        notifDAO.sendNotification(ownerId, violationId, message);
+    }
+}

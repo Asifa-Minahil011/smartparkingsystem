@@ -1,0 +1,59 @@
+package db;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
+public class DBConnection {
+
+    // ── Singleton instance ────────────────────────────────────────────────────
+    private static DBConnection instance;
+    private Connection connection;
+
+    // ── Database credentials ──────────────────────────────────────────────────
+    private static final String HOST     = "sql12.freesqldatabase.com";
+    private static final String DB_NAME  = "sql12824451";
+    private static final String USER     = "sql12824451";
+    private static final String PASSWORD = "RSNbBts9lN";
+    private static final int    PORT     = 3306;
+
+    // ── Private constructor (Singleton) ───────────────────────────────────────
+    private DBConnection() {
+        try {
+            // Load JDBC driver explicitly (required for some environments)
+            Class.forName("com.mysql.cj.jdbc.Driver");
+            String url = "jdbc:mysql://" + HOST + ":" + PORT + "/" + DB_NAME +
+                    "?useSSL=false&allowPublicKeyRetrieval=true" +
+                    "&serverTimezone=UTC";
+            connection = DriverManager.getConnection(url, USER, PASSWORD);
+            System.out.println("Database connected successfully!");
+        } catch (ClassNotFoundException e) {
+            System.out.println("MySQL Driver not found: " + e.getMessage());
+        } catch (SQLException e) {
+            System.out.println("Connection failed: " + e.getMessage());
+        }
+    }
+
+    // ── Get single instance ───────────────────────────────────────────────────
+    public static DBConnection getInstance() {
+        if (instance == null) {
+            instance = new DBConnection();
+        }
+        return instance;
+    }
+
+    // ── Get the active connection ─────────────────────────────────────────────
+    public Connection getConnection() {
+        try {
+            // Reconnect if connection was lost
+            if (connection == null || connection.isClosed()) {
+                instance = null;
+                instance = new DBConnection();
+                return instance.connection;
+            }
+        } catch (SQLException e) {
+            System.out.println("Connection check failed: " + e.getMessage());
+        }
+        return connection;
+    }
+}

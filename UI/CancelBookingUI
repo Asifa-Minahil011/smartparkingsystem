@@ -1,0 +1,306 @@
+package ui;
+
+import bl.Booking;
+import bl.BookingController;
+import javafx.application.Application;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.stage.Stage;
+import java.util.List;
+
+
+public class CancelBookingUI extends Application {
+
+    // Placeholder session value - replace with actual session owner ID
+    private static final int OWNER_ID = 1;
+
+    @Override
+    public void start(Stage stage) {
+        stage.setTitle("Smart Parking System - Cancel Booking");
+
+        // ── NAVBAR ────────────────────────────────────────────────────────────
+        HBox navbar = new HBox();
+        navbar.setPadding(new Insets(15, 25, 15, 25));
+        navbar.setStyle("-fx-background-color: #1a1a2e;");
+        navbar.setAlignment(Pos.CENTER_LEFT);
+
+        Label appName = new Label("🅿 Smart Parking System");
+        appName.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        appName.setTextFill(Color.WHITE);
+
+        Label ucLabel = new Label("UC05 - Cancel Booking");
+        ucLabel.setFont(Font.font("Arial", 13));
+        ucLabel.setTextFill(Color.web("#a0a0c0"));
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Button backBtn = new Button("← Back");
+        backBtn.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: #a0a0c0; " +
+                        "-fx-font-size: 13px; -fx-cursor: hand; " +
+                        "-fx-border-color: #2a2a4e; -fx-border-radius: 6; -fx-padding: 5 12;"
+        );
+        backBtn.setOnAction(e -> {
+            DashboardUI dashboard = new DashboardUI();
+            Stage dashStage = new Stage();
+            try {
+                dashboard.start(dashStage);
+                stage.close();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        navbar.getChildren().addAll(appName, spacer, ucLabel, backBtn);
+
+        // ── HEADER ────────────────────────────────────────────────────────────
+        VBox header = new VBox(5);
+        header.setPadding(new Insets(25, 25, 15, 25));
+        header.setStyle("-fx-background-color: #16213e;");
+
+        Label title = new Label("Cancel a Booking");
+        title.setFont(Font.font("Arial", FontWeight.BOLD, 26));
+        title.setTextFill(Color.WHITE);
+
+        Label subtitle = new Label(
+                "Select an active booking below and confirm cancellation");
+        subtitle.setFont(Font.font("Arial", 13));
+        subtitle.setTextFill(Color.web("#8888aa"));
+
+        header.getChildren().addAll(title, subtitle);
+
+        // ── FETCH ACTIVE BOOKINGS from BL ─────────────────────────────────────
+        BookingController controller = new BookingController();
+        List<Booking> activeBookings = controller.getActiveBookings(OWNER_ID);
+
+        // Stats
+        HBox statsBar = new HBox(15);
+        statsBar.setPadding(new Insets(10, 25, 10, 25));
+        statsBar.setStyle("-fx-background-color: #16213e;");
+        statsBar.getChildren().add(
+                statCard("Active Bookings",
+                        String.valueOf(activeBookings.size()), "#0f3460")
+        );
+
+        // ── TABLE of active bookings ──────────────────────────────────────────
+        TableView<Booking> table = new TableView<>();
+        table.setStyle(
+                "-fx-background-color: #1a1a2e;" +
+                        "-fx-table-cell-border-color: #2a2a4e;"
+        );
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.setPlaceholder(new Label("No active bookings found."));
+
+        TableColumn<Booking, Integer> idCol    =
+                makeCol("Booking ID",  "bookingId",   100);
+        TableColumn<Booking, String> dateCol   =
+                makeCol("Date",        "bookingDate", 120);
+        TableColumn<Booking, String> startCol  =
+                makeCol("Start Time",  "startTime",   110);
+        TableColumn<Booking, String> endCol    =
+                makeCol("End Time",    "endTime",     110);
+        TableColumn<Booking, String> slotCol   =
+                makeCol("Slot",        "slotNumber",  80);
+        TableColumn<Booking, String> zoneCol   =
+                makeCol("Zone",        "zone",        90);
+
+        // Status always green (only active shown)
+        TableColumn<Booking, String> statusCol = new TableColumn<>("Status");
+        statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+        statusCol.setMinWidth(100);
+        statusCol.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String s, boolean empty) {
+                super.updateItem(s, empty);
+                if (empty || s == null) { setText(null); setStyle(""); }
+                else {
+                    setText("  ACTIVE  ");
+                    setStyle("-fx-background-color: #1a472a; " +
+                            "-fx-text-fill: #51cf66; " +
+                            "-fx-background-radius: 10; " +
+                            "-fx-font-weight: bold;");
+                }
+            }
+        });
+
+        table.getColumns().addAll(
+                idCol, dateCol, startCol, endCol, statusCol, slotCol, zoneCol);
+
+        ObservableList<Booking> data =
+                FXCollections.observableArrayList(activeBookings);
+        table.setItems(data);
+
+        // Row hover
+        table.setRowFactory(tv -> {
+            TableRow<Booking> row = new TableRow<>();
+            row.setStyle("-fx-background-color: #1a1a2e;");
+            row.hoverProperty().addListener((obs, was, is) -> {
+                if (is && !row.isEmpty())
+                    row.setStyle("-fx-background-color: #2a2a4e;");
+                else
+                    row.setStyle("-fx-background-color: #1a1a2e;");
+            });
+            return row;
+        });
+
+        // ── SELECTION INFO ────────────────────────────────────────────────────
+        Label selectedLabel = new Label("Selected Booking: None");
+        selectedLabel.setFont(Font.font("Arial", FontWeight.BOLD, 13));
+        selectedLabel.setTextFill(Color.web("#ffd43b"));
+
+        table.getSelectionModel().selectedItemProperty().addListener(
+                (obs, old, selected) -> {
+                    if (selected != null) {
+                        selectedLabel.setText(
+                                "Selected: Booking #" + selected.getBookingId() +
+                                        " | Slot: " + selected.getSlotNumber() +
+                                        " | Date: " + selected.getBookingDate());
+                    }
+                });
+
+        // ── CANCEL BUTTON ─────────────────────────────────────────────────────
+        Button cancelBtn = new Button("✘ Cancel Selected Booking");
+        cancelBtn.setStyle(
+                "-fx-background-color: #7a1a1a; -fx-text-fill: white; " +
+                        "-fx-font-size: 14px; -fx-cursor: hand; " +
+                        "-fx-background-radius: 8; -fx-padding: 10 24;"
+        );
+
+        Label resultLabel = new Label();
+        resultLabel.setFont(Font.font("Arial", 13));
+
+        cancelBtn.setOnAction(e -> {
+            Booking selected = table.getSelectionModel().getSelectedItem();
+            if (selected == null) {
+                resultLabel.setTextFill(Color.web("#ff6b6b"));
+                resultLabel.setText("⚠  Please select a booking to cancel.");
+                return;
+            }
+
+            // Confirmation dialog
+            Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+            confirm.setTitle("Confirm Cancellation");
+            confirm.setHeaderText("Cancel Booking #" +
+                    selected.getBookingId() + "?");
+            confirm.setContentText(
+                    "Slot: " + selected.getSlotNumber() +
+                            "\nDate: " + selected.getBookingDate() +
+                            "\nTime: " + selected.getStartTime() +
+                            " - " + selected.getEndTime() +
+                            "\n\nThis action cannot be undone.");
+
+            confirm.showAndWait().ifPresent(response -> {
+                if (response == ButtonType.OK) {
+                    // We need slot_id for the BL call.
+                    // BookingDAO.getActiveBookingsByOwner stores slot info
+                    // but not slotId in the Booking object by default.
+                    // We pass slotId = 0 here and let BookingController
+                    // handle the slot lookup from the DB via bookingId.
+                    // For proper integration: extend Booking to store slotId,
+                    // or use a second DAO query inside the controller.
+                    String result = controller.cancelBooking(
+                            selected.getBookingId(), OWNER_ID, 0);
+
+                    if (result.startsWith("SUCCESS")) {
+                        resultLabel.setTextFill(Color.web("#51cf66"));
+                        resultLabel.setText("✔  " + result);
+                        // Refresh table
+                        List<Booking> refreshed =
+                                controller.getActiveBookings(OWNER_ID);
+                        data.setAll(refreshed);
+                        table.setItems(data);
+                        selectedLabel.setText("Selected Booking: None");
+                    } else {
+                        resultLabel.setTextFill(Color.web("#ff6b6b"));
+                        resultLabel.setText("✘  " + result);
+                    }
+                }
+            });
+        });
+
+        // ── BODY LAYOUT ───────────────────────────────────────────────────────
+        VBox body = new VBox(12);
+        body.setPadding(new Insets(20, 25, 20, 25));
+        body.setStyle("-fx-background-color: #1a1a2e;");
+
+        Label tableLabel = new Label("Your Active Bookings:");
+        tableLabel.setFont(Font.font("Arial", FontWeight.BOLD, 14));
+        tableLabel.setTextFill(Color.web("#a0a0c0"));
+
+        body.getChildren().addAll(
+                tableLabel, table, selectedLabel, cancelBtn, resultLabel);
+
+        // ── FOOTER ────────────────────────────────────────────────────────────
+        HBox footer = new HBox();
+        footer.setPadding(new Insets(12, 25, 12, 25));
+        footer.setStyle(
+                "-fx-background-color: #1a1a2e; " +
+                        "-fx-border-color: #2a2a4e; -fx-border-width: 1 0 0 0;");
+        Label footerLbl = new Label(
+                "Smart Parking Allocation & Violation Enforcement System");
+        footerLbl.setFont(Font.font("Arial", 11));
+        footerLbl.setTextFill(Color.web("#555577"));
+        footer.getChildren().add(footerLbl);
+
+        // ── MAIN LAYOUT ───────────────────────────────────────────────────────
+        VBox mainLayout = new VBox();
+        mainLayout.setStyle("-fx-background-color: #1a1a2e;");
+
+        VBox tableContainer = new VBox(body);
+        tableContainer.setStyle("-fx-background-color: #1a1a2e;");
+        VBox.setVgrow(tableContainer, Priority.ALWAYS);
+
+        mainLayout.getChildren().addAll(
+                navbar, header, statsBar, tableContainer, footer);
+
+        Scene scene = new Scene(mainLayout, 900, 620);
+        stage.setScene(scene);
+        stage.setMinWidth(800);
+        stage.setMinHeight(500);
+        stage.show();
+    }
+
+    // ── Column factory ────────────────────────────────────────────────────────
+    private <T> TableColumn<Booking, T> makeCol(
+            String title, String field, int minWidth) {
+        TableColumn<Booking, T> col = new TableColumn<>(title);
+        col.setCellValueFactory(new PropertyValueFactory<>(field));
+        col.setMinWidth(minWidth);
+        col.setStyle("-fx-text-fill: white;");
+        return col;
+    }
+
+    // ── Stat card ─────────────────────────────────────────────────────────────
+    private VBox statCard(String label, String value, String bgColor) {
+        VBox card = new VBox(3);
+        card.setPadding(new Insets(10, 20, 10, 20));
+        card.setStyle("-fx-background-color: " + bgColor +
+                "; -fx-background-radius: 8;");
+        card.setAlignment(Pos.CENTER);
+
+        Label val = new Label(value);
+        val.setFont(Font.font("Arial", FontWeight.BOLD, 22));
+        val.setTextFill(Color.WHITE);
+
+        Label lbl = new Label(label);
+        lbl.setFont(Font.font("Arial", 12));
+        lbl.setTextFill(Color.web("#8888aa"));
+
+        card.getChildren().addAll(val, lbl);
+        return card;
+    }
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}

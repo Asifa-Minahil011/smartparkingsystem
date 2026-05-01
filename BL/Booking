@@ -1,0 +1,65 @@
+package bl;
+
+
+public class Booking {
+
+    // ── Fields ──────────────────────────────────────────────────────────────
+    private int    bookingId;
+    private String bookingDate;
+    private String startTime;
+    private String endTime;
+    private String status;       // "active" | "cancelled"
+    private String slotNumber;
+    private String zone;
+    private int    ownerId;
+    private int    slotId;
+    private int    vehicleId;
+
+    // ── Constructor (full - used when reading from DB) ───────────────────────
+    public Booking(int bookingId, String bookingDate, String startTime,
+                   String endTime, String status, String slotNumber, String zone) {
+        this.bookingId   = bookingId;
+        this.bookingDate = bookingDate;
+        this.startTime   = startTime;
+        this.endTime     = endTime;
+        this.status      = status;
+        this.slotNumber  = slotNumber;
+        this.zone        = zone;
+    }
+
+    // ── Constructor (for creating a new booking - UC04) ──────────────────────
+    public Booking(int ownerId, int slotId, int vehicleId,
+                   String bookingDate, String startTime, String endTime) {
+        this.ownerId     = ownerId;
+        this.slotId      = slotId;
+        this.vehicleId   = vehicleId;
+        this.bookingDate = bookingDate;
+        this.startTime   = startTime;
+        this.endTime     = endTime;
+        this.status      = "active";
+    }
+
+    // ── Getters ──────────────────────────────────────────────────────────────
+    public int    getBookingId()   { return bookingId; }
+    public String getBookingDate() { return bookingDate; }
+    public String getStartTime()   { return startTime; }
+    public String getEndTime()     { return endTime; }
+    public String getStatus()      { return status; }
+    public String getSlotNumber()  { return slotNumber; }
+    public String getZone()        { return zone; }
+    public int    getOwnerId()     { return ownerId; }
+    public int    getSlotId()      { return slotId; }
+    public int    getVehicleId()   { return vehicleId; }
+
+    // ── Setters ──────────────────────────────────────────────────────────────
+    public void setBookingId(int bookingId)     { this.bookingId   = bookingId; }
+    public void setStatus(String status)        { this.status      = status; }
+    public void setSlotNumber(String slotNumber){ this.slotNumber  = slotNumber; }
+    public void setZone(String zone)            { this.zone        = zone; }
+
+    @Override
+    public String toString() {
+        return "Booking{id=" + bookingId + ", date=" + bookingDate +
+                ", slot=" + slotNumber + ", status=" + status + "}";
+    }
+}

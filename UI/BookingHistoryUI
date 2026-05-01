@@ -1,1 +1,212 @@
+package ui;
 
+import bl.Booking;
+import bl.BookingController;
+import javafx.application.Application;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.stage.Stage;
+import java.util.List;
+
+public class BookingHistoryUI extends Application {
+
+    @Override
+    public void start(Stage stage) {
+        stage.setTitle("Smart Parking System");
+
+        // ── TOP NAVBAR ──
+        HBox navbar = new HBox();
+        navbar.setPadding(new Insets(15, 25, 15, 25));
+        navbar.setStyle("-fx-background-color: #1a1a2e;");
+        navbar.setAlignment(Pos.CENTER_LEFT);
+
+        Label appName = new Label("🅿 Smart Parking System");
+        appName.setFont(Font.font("Arial", FontWeight.BOLD, 20));
+        appName.setTextFill(Color.WHITE);
+
+        Label ucLabel = new Label("Booking History");
+        ucLabel.setFont(Font.font("Arial", 13));
+        ucLabel.setTextFill(Color.web("#a0a0c0"));
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Button backBtn = new Button("← Back");
+        backBtn.setStyle(
+                "-fx-background-color: transparent; -fx-text-fill: #a0a0c0; " +
+                        "-fx-font-size: 13px; -fx-cursor: hand; -fx-border-color: #2a2a4e; " +
+                        "-fx-border-radius: 6; -fx-padding: 5 12;"
+        );
+        backBtn.setOnAction(e -> {
+            DashboardUI dashboard = new DashboardUI();
+            Stage dashStage = new Stage();
+            try {
+                dashboard.start(dashStage);
+                stage.close();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        });
+        navbar.getChildren().addAll(appName, spacer, ucLabel, backBtn);
+        // ── HEADER SECTION ──
+        VBox header = new VBox(5);
+        header.setPadding(new Insets(25, 25, 15, 25));
+        header.setStyle("-fx-background-color: #16213e;");
+
+        Label title = new Label("My Booking History");
+        title.setFont(Font.font("Arial", FontWeight.BOLD, 26));
+        title.setTextFill(Color.WHITE);
+
+        Label subtitle = new Label("View all your past and current parking bookings");
+        subtitle.setFont(Font.font("Arial", 13));
+        subtitle.setTextFill(Color.web("#8888aa"));
+
+        BookingController controller = new BookingController();
+        List<Booking> bookings = controller.getBookingHistory(1);
+
+        long activeCount = bookings.stream().filter(b -> b.getStatus().equals("active")).count();
+        long cancelledCount = bookings.stream().filter(b -> b.getStatus().equals("cancelled")).count();
+
+        HBox statsBar = new HBox(15);
+        statsBar.setPadding(new Insets(15, 0, 5, 0));
+
+        statsBar.getChildren().addAll(
+                statCard("Total", String.valueOf(bookings.size()), "#0f3460"),
+                statCard("Active", String.valueOf(activeCount), "#0f3460"),
+                statCard("Cancelled", String.valueOf(cancelledCount), "#0f3460")
+        );
+
+        header.getChildren().addAll(title, subtitle, statsBar);
+
+        // ── TABLE ──
+        TableView<Booking> table = new TableView<>();
+        table.setStyle(
+                "-fx-background-color: #1a1a2e;" +
+                        "-fx-table-cell-border-color: #2a2a4e;" +
+                        "-fx-text-fill: white;"
+        );
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+        TableColumn<Booking, Integer> idCol = makeColumn("Booking ID", "bookingId", 100);
+        TableColumn<Booking, String> dateCol = makeColumn("Date", "bookingDate", 120);
+        TableColumn<Booking, String> startCol = makeColumn("Start Time", "startTime", 110);
+        TableColumn<Booking, String> endCol = makeColumn("End Time", "endTime", 110);
+        TableColumn<Booking, String> slotCol = makeColumn("Slot", "slotNumber", 80);
+        TableColumn<Booking, String> zoneCol = makeColumn("Zone", "zone", 100);
+
+        // Status column with colored badges
+        TableColumn<Booking, String> statusCol = new TableColumn<>("Status");
+        statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+        statusCol.setCellFactory(col -> new TableCell<>() {
+            @Override
+            protected void updateItem(String status, boolean empty) {
+                super.updateItem(status, empty);
+                if (empty || status == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText("  " + status.toUpperCase() + "  ");
+                    if (status.equals("active")) {
+                        setStyle("-fx-background-color: #1a472a; -fx-text-fill: #51cf66; " +
+                                "-fx-background-radius: 10; -fx-font-weight: bold;");
+                    } else if (status.equals("cancelled")) {
+                        setStyle("-fx-background-color: #4a1a1a; -fx-text-fill: #ff6b6b; " +
+                                "-fx-background-radius: 10; -fx-font-weight: bold;");
+                    } else {
+                        setStyle("-fx-background-color: #2a2a1a; -fx-text-fill: #ffd43b; " +
+                                "-fx-background-radius: 10; -fx-font-weight: bold;");
+                    }
+                }
+            }
+        });
+
+        table.getColumns().addAll(idCol, dateCol, startCol, endCol, statusCol, slotCol, zoneCol);
+
+        ObservableList<Booking> data = FXCollections.observableArrayList(bookings);
+        table.setItems(data);
+
+        // Style table rows
+        table.setRowFactory(tv -> {
+            TableRow<Booking> row = new TableRow<>();
+            row.setStyle("-fx-background-color: #1a1a2e;");
+            row.hoverProperty().addListener((obs, wasHovered, isHovered) -> {
+                if (isHovered && !row.isEmpty()) {
+                    row.setStyle("-fx-background-color: #2a2a4e;");
+                } else {
+                    row.setStyle("-fx-background-color: #1a1a2e;");
+                }
+            });
+            return row;
+        });
+
+        // ── BOTTOM BAR ──
+        HBox bottomBar = new HBox();
+        bottomBar.setPadding(new Insets(12, 25, 12, 25));
+        bottomBar.setStyle("-fx-background-color: #1a1a2e; -fx-border-color: #2a2a4e; -fx-border-width: 1 0 0 0;");
+        bottomBar.setAlignment(Pos.CENTER_LEFT);
+
+        Label footerLabel = new Label("Smart Parking Allocation & Violation Enforcement System ");
+        footerLabel.setFont(Font.font("Arial", 11));
+        footerLabel.setTextFill(Color.web("#555577"));
+
+        bottomBar.getChildren().add(footerLabel);
+
+        // ── MAIN LAYOUT ──
+        VBox mainLayout = new VBox();
+        mainLayout.setStyle("-fx-background-color: #1a1a2e;");
+
+        VBox tableContainer = new VBox(table);
+        tableContainer.setPadding(new Insets(15, 25, 15, 25));
+        tableContainer.setStyle("-fx-background-color: #1a1a2e;");
+        VBox.setVgrow(table, Priority.ALWAYS);
+
+        mainLayout.getChildren().addAll(navbar, header, tableContainer, bottomBar);
+        VBox.setVgrow(tableContainer, Priority.ALWAYS);
+
+        Scene scene = new Scene(mainLayout, 900, 600);
+        stage.setScene(scene);
+        stage.setMinWidth(800);
+        stage.setMinHeight(500);
+        stage.show();
+    }
+
+    private <T> TableColumn<Booking, T> makeColumn(String title, String field, int minWidth) {
+        TableColumn<Booking, T> col = new TableColumn<>(title);
+        col.setCellValueFactory(new PropertyValueFactory<>(field));
+        col.setMinWidth(minWidth);
+        col.setStyle("-fx-text-fill: white;");
+        return col;
+    }
+
+    private VBox statCard(String label, String value, String bgColor) {
+        VBox card = new VBox(3);
+        card.setPadding(new Insets(10, 20, 10, 20));
+        card.setStyle("-fx-background-color: " + bgColor + "; -fx-background-radius: 8;");
+        card.setAlignment(Pos.CENTER);
+
+        Label val = new Label(value);
+        val.setFont(Font.font("Arial", FontWeight.BOLD, 22));
+        val.setTextFill(Color.WHITE);
+
+        Label lbl = new Label(label);
+        lbl.setFont(Font.font("Arial", 12));
+        lbl.setTextFill(Color.web("#8888aa"));
+
+        card.getChildren().addAll(val, lbl);
+        return card;
+    }
+
+
+    public static void main(String[] args) {
+        launch(args);
+    }
+}

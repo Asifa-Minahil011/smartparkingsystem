@@ -1,0 +1,99 @@
+package bl;
+
+import db.BookingDAO;
+import db.ParkingSlotDAO;
+import java.util.List;
+
+public class BookingController {
+
+    private final BookingDAO bookingDAO;
+    private final ParkingSlotDAO slotDAO;
+
+    public BookingController() {
+        this.bookingDAO = new BookingDAO();
+        this.slotDAO    = new ParkingSlotDAO();
+    }
+
+    public List<Booking> getBookingHistory(int ownerId) {
+        return bookingDAO.getBookingHistory(ownerId);
+    }
+
+
+    public String bookSlot(int ownerId, int slotId, int vehicleId,
+                           String date, String startTime, String endTime) {
+
+        // ── Step 1: Input validation ─────────────────────────────────────────
+        if (date == null || date.trim().isEmpty()) {
+            return "ERROR: Please select a booking date.";
+        }
+        if (startTime == null || startTime.trim().isEmpty()) {
+            return "ERROR: Please enter a start time.";
+        }
+        if (endTime == null || endTime.trim().isEmpty()) {
+            return "ERROR: Please enter an end time.";
+        }
+        if (startTime.compareTo(endTime) >= 0) {
+            return "ERROR: End time must be after start time.";
+        }
+        if (ownerId <= 0 || slotId <= 0 || vehicleId <= 0) {
+            return "ERROR: Invalid owner, slot, or vehicle ID.";
+        }
+
+        // ── Step 2: Check slot is 'available' in DB ──────────────────────────
+        ParkingSlot slot = slotDAO.getSlotById(slotId);
+        if (slot == null) {
+            return "ERROR: Parking slot not found.";
+        }
+        if (!slot.getStatus().equals("available")) {
+            return "ERROR: This slot is no longer available. Please choose another.";
+        }
+
+        // ── Step 3: Check for time conflict ──────────────────────────────────
+        boolean noConflict = bookingDAO.isSlotAvailableForTime(
+                slotId, date, startTime, endTime);
+        if (!noConflict) {
+            return "ERROR: This slot is already booked for the selected time period.";
+        }
+
+        // ── Step 4: Create booking ────────────────────────────────────────────
+        Booking newBooking = new Booking(ownerId, slotId, vehicleId,
+                date, startTime, endTime);
+        boolean bookingCreated = bookingDAO.createBooking(newBooking);
+        if (!bookingCreated) {
+            return "ERROR: Failed to create booking. Please try again.";
+        }
+
+        // ── Step 5: Update slot status ────────────────────────────────────────
+        slotDAO.updateSlotStatus(slotId, "reserved");
+
+        return "SUCCESS: Slot " + slot.getSlotNumber() + " booked successfully!";
+    }
+
+
+    public String cancelBooking(int bookingId, int ownerId, int slotId) {
+
+        // ── Step 1 & 2: Validate and cancel in DB ────────────────────────────
+        if (bookingId <= 0) {
+            return "ERROR: Invalid booking ID.";
+        }
+        if (ownerId <= 0) {
+            return "ERROR: Invalid owner ID.";
+        }
+
+        boolean cancelled = bookingDAO.cancelBooking(bookingId, ownerId);
+        if (!cancelled) {
+            return "ERROR: Could not cancel booking. " +
+                    "It may already be cancelled or not found.";
+        }
+
+        // ── Step 3: Release the slot ──────────────────────────────────────────
+        slotDAO.updateSlotStatus(slotId, "available");
+
+        return "SUCCESS: Booking #" + bookingId + " has been cancelled successfully.";
+    }
+
+    public List<Booking> getActiveBookings(int ownerId) {
+        return bookingDAO.getActiveBookingsByOwner(ownerId);
+    }
+}
+

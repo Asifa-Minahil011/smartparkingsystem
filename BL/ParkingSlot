@@ -1,0 +1,38 @@
+package bl;
+
+
+public class ParkingSlot {
+
+    // ── Fields ──────────────────────────────────────────────────────────────
+    private int    slotId;
+    private String slotNumber;
+    private String zone;
+    private String status;        // "available" | "reserved" | "occupied"
+    private String slotType;      // "standard" | "compact" | "handicapped"
+
+    // ── Constructor ──────────────────────────────────────────────────────────
+    public ParkingSlot(int slotId, String slotNumber, String zone,
+                       String status, String slotType) {
+        this.slotId     = slotId;
+        this.slotNumber = slotNumber;
+        this.zone       = zone;
+        this.status     = status;
+        this.slotType   = slotType;
+    }
+
+    // ── Getters ──────────────────────────────────────────────────────────────
+    public int    getSlotId()     { return slotId; }
+    public String getSlotNumber() { return slotNumber; }
+    public String getZone()       { return zone; }
+    public String getStatus()     { return status; }
+    public String getSlotType()   { return slotType; }
+
+    // ── Setters ──────────────────────────────────────────────────────────────
+    public void setStatus(String status) { this.status = status; }
+
+    @Override
+    public String toString() {
+        return "ParkingSlot{id=" + slotId + ", number=" + slotNumber +
+                ", zone=" + zone + ", status=" + status + "}";
+    }
+}
